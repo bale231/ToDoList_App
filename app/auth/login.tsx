@@ -11,240 +11,214 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useRouter, Link } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/contexts/AuthContext';
 import { useTheme } from '../../src/contexts/ThemeContext';
-import { Ionicons } from '@expo/vector-icons';
+import { GlassCard } from '../../src/components/GlassCard';
 
 export default function Login() {
   const router = useRouter();
   const { login } = useAuth();
   const { colors, theme } = useTheme();
-
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [loginMode, setLoginMode] = useState<'username' | 'email'>('username');
 
   const handleLogin = async () => {
-    if (!username || !password) {
-      Alert.alert('Error', 'Please fill in all fields');
+    if (!username.trim() || !password.trim()) {
+      Alert.alert('Error', 'Please enter username and password');
       return;
     }
 
     setIsLoading(true);
-    const result = await login(username, password, rememberMe);
-    setIsLoading(false);
-
-    if (result.success) {
-      router.replace('/(tabs)');
-    } else {
-      Alert.alert('Login Failed', result.error || 'Invalid credentials');
+    try {
+      const result = await login(username, password, rememberMe);
+      if (!result.success) {
+        Alert.alert('Login Failed', result.error || 'Invalid credentials');
+      }
+    } catch (error) {
+      Alert.alert('Error', 'An error occurred. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const gradientColors = theme === 'dark'
-    ? ['#1e293b', '#0f172a', '#1e293b']
-    : ['#dbeafe', '#f3f4f6', '#e0e7ff'];
-
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1 }}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <LinearGradient colors={gradientColors} style={styles.container}>
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+    <View style={{ flex: 1 }}>
+      <LinearGradient
+        colors={
+          theme === 'dark'
+            ? ['#0f172a', '#1e293b', '#334155']
+            : ['#3b82f6', '#2563eb', '#1d4ed8']
+        }
+        style={styles.gradient}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={{ flex: 1 }}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <Text style={[styles.title, { color: colors.text }]}>
-              Welcome Back
-            </Text>
-            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
-              Sign in to continue
-            </Text>
-          </View>
-
-          {/* Login Mode Toggle */}
-          <View style={[styles.toggleContainer, { backgroundColor: colors.card + '80', borderColor: colors.border }]}>
-            <TouchableOpacity
-              style={[
-                styles.toggleButton,
-                loginMode === 'username' && { backgroundColor: colors.primary },
-              ]}
-              onPress={() => setLoginMode('username')}
-            >
-              <Text
-                style={[
-                  styles.toggleText,
-                  { color: loginMode === 'username' ? '#fff' : colors.textSecondary },
-                ]}
-              >
-                Username
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.toggleButton,
-                loginMode === 'email' && { backgroundColor: colors.primary },
-              ]}
-              onPress={() => setLoginMode('email')}
-            >
-              <Text
-                style={[
-                  styles.toggleText,
-                  { color: loginMode === 'email' ? '#fff' : colors.textSecondary },
-                ]}
-              >
-                Email
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          {/* Login Form */}
-          <View style={[styles.card, { backgroundColor: colors.card + '90', borderColor: colors.border }]}>
-            <View style={styles.inputContainer}>
-              <Ionicons name={loginMode === 'username' ? 'person' : 'mail'} size={20} color={colors.textSecondary} />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder={loginMode === 'username' ? 'Username' : 'Email'}
-                placeholderTextColor={colors.textSecondary}
-                value={username}
-                onChangeText={setUsername}
-                autoCapitalize="none"
-                keyboardType={loginMode === 'email' ? 'email-address' : 'default'}
-              />
-            </View>
-
-            <View style={styles.inputContainer}>
-              <Ionicons name="lock-closed" size={20} color={colors.textSecondary} />
-              <TextInput
-                style={[styles.input, { color: colors.text }]}
-                placeholder="Password"
-                placeholderTextColor={colors.textSecondary}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+          <ScrollView
+            contentContainerStyle={styles.scrollContainer}
+            keyboardShouldPersistTaps="handled"
+          >
+            <View style={styles.container}>
+              {/* Logo / Title */}
+              <View style={styles.headerContainer}>
                 <Ionicons
-                  name={showPassword ? 'eye-off' : 'eye'}
-                  size={20}
-                  color={colors.textSecondary}
+                  name="checkmark-circle"
+                  size={64}
+                  color={theme === 'dark' ? colors.primary : '#fff'}
                 />
-              </TouchableOpacity>
-            </View>
+                <Text style={[styles.title, { color: theme === 'dark' ? colors.text : '#fff' }]}>
+                  ToDoList App
+                </Text>
+                <Text
+                  style={[styles.subtitle, { color: theme === 'dark' ? colors.textSecondary : 'rgba(255,255,255,0.8)' }]}
+                >
+                  Organize your life
+                </Text>
+              </View>
 
-            <TouchableOpacity
-              style={styles.rememberMeContainer}
-              onPress={() => setRememberMe(!rememberMe)}
-            >
-              <Ionicons
-                name={rememberMe ? 'checkbox' : 'square-outline'}
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[styles.rememberMeText, { color: colors.text }]}>
-                Remember me
-              </Text>
-            </TouchableOpacity>
+              {/* Login Form */}
+              <GlassCard style={styles.formCard}>
+                <Text style={[styles.formTitle, { color: colors.text }]}>Welcome Back</Text>
 
-            <TouchableOpacity
-              style={[styles.loginButton, { backgroundColor: colors.primary }]}
-              onPress={handleLogin}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={styles.loginButtonText}>Sign In</Text>
-              )}
-            </TouchableOpacity>
+                {/* Username Input */}
+                <View style={[styles.inputContainer, { borderColor: colors.border }]}>
+                  <Ionicons name="person-outline" size={20} color={colors.textSecondary} />
+                  <TextInput
+                    style={[styles.input, { color: colors.text }]}
+                    placeholder="Username or Email"
+                    placeholderTextColor={colors.textSecondary}
+                    value={username}
+                    onChangeText={setUsername}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                  />
+                </View>
 
-            <View style={styles.footer}>
-              <Text style={[styles.footerText, { color: colors.textSecondary }]}>
-                Don't have an account?{' '}
-              </Text>
-              <Link href="/auth/register" asChild>
-                <TouchableOpacity>
-                  <Text style={[styles.linkText, { color: colors.primary }]}>Sign Up</Text>
+                {/* Password Input */}
+                <View style={[styles.inputContainer, { borderColor: colors.border }]}>
+                  <Ionicons name="lock-closed-outline" size={20} color={colors.textSecondary} />
+                  <TextInput
+                    style={[styles.input, { color: colors.text }]}
+                    placeholder="Password"
+                    placeholderTextColor={colors.textSecondary}
+                    value={password}
+                    onChangeText={setPassword}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                  />
+                  <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                    <Ionicons
+                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                      size={20}
+                      color={colors.textSecondary}
+                    />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Remember Me */}
+                <TouchableOpacity
+                  style={styles.rememberMeContainer}
+                  onPress={() => setRememberMe(!rememberMe)}
+                >
+                  <Ionicons
+                    name={rememberMe ? 'checkbox' : 'square-outline'}
+                    size={24}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.rememberMeText, { color: colors.text }]}>Remember me</Text>
                 </TouchableOpacity>
-              </Link>
+
+                {/* Login Button */}
+                <TouchableOpacity
+                  style={[styles.loginButton, { backgroundColor: colors.primary }]}
+                  onPress={handleLogin}
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <ActivityIndicator color="#fff" />
+                  ) : (
+                    <Text style={styles.loginButtonText}>Sign In</Text>
+                  )}
+                </TouchableOpacity>
+
+                {/* Register Link */}
+                <View style={styles.registerContainer}>
+                  <Text style={[styles.registerText, { color: colors.textSecondary }]}>
+                    Don't have an account?{' '}
+                  </Text>
+                  <TouchableOpacity onPress={() => router.push('/auth/register')}>
+                    <Text style={[styles.registerLink, { color: colors.primary }]}>Sign Up</Text>
+                  </TouchableOpacity>
+                </View>
+              </GlassCard>
             </View>
-          </View>
-        </ScrollView>
+          </ScrollView>
+        </KeyboardAvoidingView>
       </LinearGradient>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradient: {
     flex: 1,
   },
-  scrollContent: {
+  scrollContainer: {
     flexGrow: 1,
     justifyContent: 'center',
     padding: 20,
   },
-  header: {
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  headerContainer: {
     alignItems: 'center',
-    marginBottom: 30,
+    marginBottom: 40,
   },
   title: {
     fontSize: 32,
     fontWeight: 'bold',
-    marginBottom: 8,
+    marginTop: 16,
   },
   subtitle: {
     fontSize: 16,
+    marginTop: 8,
   },
-  toggleContainer: {
-    flexDirection: 'row',
-    borderRadius: 12,
-    padding: 4,
-    marginBottom: 20,
-    borderWidth: 1,
+  formCard: {
+    marginHorizontal: 0,
   },
-  toggleButton: {
-    flex: 1,
-    paddingVertical: 10,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  toggleText: {
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  card: {
-    borderRadius: 20,
-    padding: 24,
-    borderWidth: 1,
+  formTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 24,
+    textAlign: 'center',
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
-    marginBottom: 20,
-    paddingBottom: 10,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
   },
   input: {
     flex: 1,
     fontSize: 16,
     marginLeft: 12,
-    paddingVertical: 8,
   },
   rememberMeContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 24,
   },
   rememberMeText: {
     marginLeft: 8,
@@ -254,22 +228,22 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
   loginButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
   },
-  footer: {
+  registerContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
   },
-  footerText: {
+  registerText: {
     fontSize: 14,
   },
-  linkText: {
+  registerLink: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: 'bold',
   },
 });

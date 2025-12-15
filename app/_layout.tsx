@@ -1,25 +1,49 @@
-import { Stack } from 'expo-router';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { AuthProvider } from '../src/contexts/AuthContext';
-import { ThemeProvider } from '../src/contexts/ThemeContext';
+import { AuthProvider, useAuth } from '../src/contexts/AuthContext';
+import { ThemeProvider, useTheme } from '../src/contexts/ThemeContext';
+
+function RootLayoutNav() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const { theme } = useTheme();
+  const segments = useSegments();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoading) return;
+
+    const inAuthGroup = segments[0] === 'auth';
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // Redirect to login if not authenticated
+      router.replace('/auth/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      // Redirect to tabs if authenticated
+      router.replace('/(tabs)');
+    }
+  }, [isAuthenticated, isLoading, segments]);
+
+  return (
+    <>
+      <Stack
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: theme === 'dark' ? '#0f172a' : '#f3f4f6' },
+        }}
+      />
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+    </>
+  );
+}
 
 export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <AuthProvider>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-            }}
-          >
-            <Stack.Screen name="index" />
-            <Stack.Screen name="auth/login" />
-            <Stack.Screen name="auth/register" />
-            <Stack.Screen name="(tabs)" />
-          </Stack>
-          <StatusBar style="auto" />
+          <RootLayoutNav />
         </AuthProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
