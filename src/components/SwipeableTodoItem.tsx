@@ -1,17 +1,9 @@
-import React, { ReactNode } from 'react';
-import { StyleSheet, View, TouchableOpacity, Text, Alert, Dimensions } from 'react-native';
-import { Gesture, GestureDetector } from 'react-native-gesture-handler';
-import Animated, {
-  useSharedValue,
-  useAnimatedStyle,
-  withSpring,
-  withTiming,
-  runOnJS,
-} from 'react-native-reanimated';
+import React, { ReactNode, useRef } from 'react';
+import { StyleSheet, View, TouchableOpacity, Alert, Animated } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { Ionicons } from '@expo/vector-icons';
 import { useTheme } from '../contexts/ThemeContext';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ACTION_WIDTH = 80;
 const SWIPE_THRESHOLD = 60;
 
@@ -31,7 +23,7 @@ export function SwipeableTodoItem({
   disabled = false,
 }: SwipeableTodoItemProps) {
   const { colors } = useTheme();
-  const translateX = useSharedValue(0);
+  const translateX = useRef(new Animated.Value(0)).current;
 
   const handleDelete = () => {
     Alert.alert(
@@ -44,39 +36,48 @@ export function SwipeableTodoItem({
     );
   };
 
-  const panGesture = Gesture.Pan()
-    .enabled(!disabled)
-    .onUpdate((event) => {
-      const clampedX = Math.max(-ACTION_WIDTH * 1.2, Math.min(ACTION_WIDTH * 1.2, event.translationX));
-      translateX.value = clampedX;
-    })
-    .onEnd((event) => {
-      const velocity = event.velocityX;
-      const translation = event.translationX;
+  const onGestureEvent = Animated.event(
+    [{ nativeEvent: { translationX: translateX } }],
+    { useNativeDriver: true }
+  );
 
-      if (translation < -SWIPE_THRESHOLD) {
+  const onHandlerStateChange = (event: any) => {
+    if (event.nativeEvent.oldState === State.ACTIVE) {
+      const { translationX } = event.nativeEvent;
+
+      if (translationX < -SWIPE_THRESHOLD) {
         // Swipe left → Delete
-        translateX.value = withSpring(-ACTION_WIDTH);
-      } else if (translation > SWIPE_THRESHOLD) {
+        Animated.spring(translateX, {
+          toValue: -ACTION_WIDTH,
+          useNativeDriver: true,
+        }).start();
+      } else if (translationX > SWIPE_THRESHOLD) {
         // Swipe right → Edit
-        translateX.value = withSpring(ACTION_WIDTH);
+        Animated.spring(translateX, {
+          toValue: ACTION_WIDTH,
+          useNativeDriver: true,
+        }).start();
       } else {
         // Snap back
-        translateX.value = withSpring(0);
+        Animated.spring(translateX, {
+          toValue: 0,
+          useNativeDriver: true,
+        }).start();
       }
-    });
+    }
+  };
 
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }],
-  }));
+  const editOpacity = translateX.interpolate({
+    inputRange: [0, SWIPE_THRESHOLD / 2, ACTION_WIDTH],
+    outputRange: [0, 0.5, 1],
+    extrapolate: 'clamp',
+  });
 
-  const editActionStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(translateX.value > SWIPE_THRESHOLD / 2 ? 1 : 0, { duration: 150 }),
-  }));
-
-  const deleteActionStyle = useAnimatedStyle(() => ({
-    opacity: withTiming(translateX.value < -SWIPE_THRESHOLD / 2 ? 1 : 0, { duration: 150 }),
-  }));
+  const deleteOpacity = translateX.interpolate({
+    inputRange: [-ACTION_WIDTH, -SWIPE_THRESHOLD / 2, 0],
+    outputRange: [1, 0.5, 0],
+    extrapolate: 'clamp',
+  });
 
   if (disabled) {
     return <View style={styles.container}>{children}</View>;
@@ -89,13 +90,12 @@ export function SwipeableTodoItem({
         style={[
           styles.actionButton,
           styles.editAction,
-          { backgroundColor: colors.yellow },
-          editActionStyle,
+          { backgroundColor: colors.yellow, opacity: editOpacity },
         ]}
       >
         <TouchableOpacity
           onPress={() => {
-            translateX.value = withSpring(0);
+            Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
             onEdit();
           }}
           style={styles.actionTouchable}
@@ -109,13 +109,12 @@ export function SwipeableTodoItem({
         style={[
           styles.actionButton,
           styles.deleteAction,
-          { backgroundColor: colors.error },
-          deleteActionStyle,
+          { backgroundColor: colors.error, opacity: deleteOpacity },
         ]}
       >
         <TouchableOpacity
           onPress={() => {
-            translateX.value = withSpring(0);
+            Animated.spring(translateX, { toValue: 0, useNativeDriver: true }).start();
             handleDelete();
           }}
           style={styles.actionTouchable}
@@ -125,11 +124,22 @@ export function SwipeableTodoItem({
       </Animated.View>
 
       {/* Swipeable Content */}
-      <GestureDetector gesture={panGesture}>
-        <Animated.View style={[styles.content, animatedStyle]}>
+      <PanGestureHandler
+        enabled={!disabled}
+        onGestureEvent={onGestureEvent}
+        onHandlerStateChange={onHandlerStateChange}
+      >
+        <Animated.View
+          style={[
+            styles.content,
+            {
+              transform: [{ translateX }],
+            },
+          ]}
+        >
           {children}
         </Animated.View>
-      </GestureDetector>
+      </PanGestureHandler>
     </View>
   );
 }
